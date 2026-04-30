@@ -19,6 +19,14 @@
   <main class="product-layout" data-product-slug="bushings-hubs" data-product-title="Bushings & Hubs">
     <aside class="product-side" aria-label="Product sections">
       <button class="product-tab" data-target="images">Images</button>
+      <div class="product-image-submenu" aria-label="Product images">
+        <button type="button" class="product-image-tab active" data-image="1">Image 1</button>
+        <button type="button" class="product-image-tab" data-image="2">Image 2</button>
+        <button type="button" class="product-image-tab" data-image="3">Image 3</button>
+        <button type="button" class="product-image-tab" data-image="4">Image 4</button>
+        <button type="button" class="product-image-tab" data-image="5">Image 5</button>
+        <button type="button" class="product-image-tab" data-image="6">Image 6</button>
+      </div>
       <button class="product-tab active" data-target="identification">Identification</button>
       <button class="product-tab" data-target="application">Application</button>
       <button class="product-tab" data-target="brands">Brands</button>
@@ -27,7 +35,7 @@
       <button class="product-tab" data-target="detailed">Detailed Rundown</button>
     </aside>
     <section class="product-content">
-      <div id="images" class="product-section"><h2>Images</h2><p class="subtitle">Place images in <code>assets/img/galleries/bushings-hubs/</code> using names <code>01.jpg</code>, <code>02.jpg</code>, etc. The image tile resizes automatically and doubles on hover.</p><div class="product-gallery" id="gallery"></div></div>
+      <div id="images" class="product-section"><h2>Images</h2><p class="subtitle">Place images in <code>assets/img/galleries/bushings-hubs/</code> using names <code>01.jpg</code>, <code>02.jpg</code>, etc. Select an image from the left menu to display it in the main image tile.</p><div class="product-image-viewer" id="imageViewer"><div class="product-placeholder">Select an image from the Images menu.</div></div></div>
       <div id="identification" class="product-section active"><h2>Identification</h2><div class="product-info-grid"><div class="product-info-card"><h3>Visual checks</h3><p class="subtitle">Content coming soon.</p></div><div class="product-info-card"><h3>Measurements</h3><p class="subtitle">Content coming soon.</p></div></div></div>
       <div id="application" class="product-section"><h2>Application</h2><div class="product-info-card"><p class="subtitle">Content coming soon.</p></div></div>
       <div id="brands" class="product-section"><h2>Brands</h2><div class="product-info-card"><p class="subtitle">Content coming soon.</p></div></div>
@@ -58,9 +66,15 @@
     sections.forEach(s => s.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(tab.dataset.target).classList.add('active');
+    const side = document.querySelector('.product-side');
+    if(side) side.classList.toggle('images-open', tab.dataset.target === 'images');
     if(tab.dataset.target === 'images') buildGallery();
     if(tab.dataset.target === 'brief') loadBrief();
     if(tab.dataset.target === 'detailed') loadDetailed();
+  }));
+  document.querySelectorAll('.product-image-tab').forEach(btn => btn.addEventListener('click', () => {
+    openImageSection();
+    selectImage(btn.dataset.image || 1);
   }));
   function esc(s){return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
   function candidateImages(i){
@@ -75,16 +89,40 @@
     img.onerror = () => tryImage(img, list, idx+1, fallback);
     img.src = list[idx];
   }
+  function setActiveImageButton(i){
+    document.querySelectorAll('.product-image-tab').forEach(btn => {
+      btn.classList.toggle('active', Number(btn.dataset.image) === Number(i));
+    });
+  }
+  function openImageSection(){
+    tabs.forEach(t => t.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    const imageTab = document.querySelector('.product-tab[data-target="images"]');
+    if(imageTab) imageTab.classList.add('active');
+    const imageSection = document.getElementById('images');
+    if(imageSection) imageSection.classList.add('active');
+    const side = document.querySelector('.product-side');
+    if(side) side.classList.add('images-open');
+  }
+  function selectImage(i){
+    const viewer = document.getElementById('imageViewer');
+    if(!viewer) return;
+    const imageNumber = Number(i) || 1;
+    viewer.dataset.current = String(imageNumber);
+    viewer.innerHTML = '';
+    const img = document.createElement('img');
+    img.alt = `${title} image ${imageNumber}`;
+    img.loading = 'lazy';
+    tryImage(img, candidateImages(imageNumber), 0, () => {
+      viewer.innerHTML = `<div class="product-placeholder">Content coming soon<br><small>Image ${imageNumber}</small></div>`;
+    });
+    viewer.appendChild(img);
+    setActiveImageButton(imageNumber);
+  }
   function buildGallery(){
-    const gallery = document.getElementById('gallery');
-    if(gallery.dataset.done) return;
-    for(let i=1;i<=6;i++){
-      const wrap = document.createElement('div'); wrap.className='product-photo';
-      const img = document.createElement('img'); img.alt = `${title} image ${i}`; img.loading='lazy';
-      tryImage(img, candidateImages(i), 0, () => { wrap.innerHTML = `<div class="product-placeholder">Content coming soon<br><small>Image ${i}</small></div>`; });
-      wrap.appendChild(img); gallery.appendChild(wrap);
-    }
-    gallery.dataset.done='1';
+    const viewer = document.getElementById('imageViewer');
+    if(!viewer) return;
+    selectImage(Number(viewer.dataset.current || 1));
   }
   async function loadBrief(){
     const out = document.getElementById('briefOut');
