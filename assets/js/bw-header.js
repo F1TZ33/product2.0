@@ -55,6 +55,7 @@
       'resources-calculators.html': 'resources.html',
       'resources-core.html': 'resources.html',
       'resources-templates.html': 'resources.html',
+      'resources-tools.html': 'resources.html',
 
       // SOP children
       'sop-sales.html': 'sops.html',

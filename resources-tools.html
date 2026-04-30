@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Resources — Tools / How To</title>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<style>
+.toolLibrary{margin-top:18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch;}
+@media(max-width:1000px){.toolLibrary{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:640px){.toolLibrary{grid-template-columns:1fr;}}
+.toolCard{cursor:pointer;min-height:210px;display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:flex-start;gap:10px;}
+.toolCardIcon{width:118px;height:118px;object-fit:contain;border-radius:16px;filter:drop-shadow(0 14px 24px rgba(0,0,0,.38));transition:transform .22s ease, filter .22s ease;}
+.toolCard:hover .toolCardIcon{transform:translateY(-4px) scale(1.08);filter:drop-shadow(0 20px 34px rgba(0,0,0,.52));}
+.toolViewer{margin-top:20px;}
+.toolActions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0 0;}
+.toolDoc{background:#fff;color:#111;border-radius:18px;padding:22px;overflow:auto;box-shadow:0 16px 38px rgba(0,0,0,.22);}
+.toolDoc h1,.toolDoc h2,.toolDoc h3{color:#111;}
+.toolDoc img{max-width:100%;height:auto;}
+.toolDoc table{border-collapse:collapse;width:100%;margin:12px 0;}
+.toolDoc td,.toolDoc th{border:1px solid #ccc;padding:8px;vertical-align:top;}
+</style>
+</head>
+<body data-page="page" data-back="resources.html">
+<div class="container"><div id="bw-global-header"></div>
+<section class="heroPanel">
+<div class="heroIcon">🛠️</div>
+<h1>Tools / How To</h1>
+<p class="subtitle" style="text-align:center;max-width:820px;margin:10px auto 0">Practical reference guides for tools, measuring, and counter support.</p>
+</section>
+
+<section class="toolLibrary">
+  <button class="card toolCard" type="button" data-doc="downloads/resources/tools/How to read a metric vernier calliper.docx" data-title="How to read a metric vernier calliper">
+    <img class="toolCardIcon" src="assets/icons/tools.svg" alt="Tools">
+    <div class="productTitle">Metric Vernier Calliper</div>
+    <div class="subtitle">How to read and check a metric vernier calliper.</div>
+  </button>
+</section>
+
+<section class="toolViewer card" id="toolViewer">
+  <h2 id="toolTitle">Metric Vernier Calliper</h2>
+  <p class="subtitle" id="toolStatus">Loading guide…</p>
+  <div class="toolActions">
+    <a class="btn" href="downloads/resources/tools/How to read a metric vernier calliper.docx" download>Download DOCX</a>
+  </div>
+  <div id="toolDoc" class="toolDoc" style="margin-top:16px;">Loading guide…</div>
+</section>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script src="assets/js/bw-header.js"></script>
+<script>
+async function loadToolDoc(path, title){
+  const out = document.getElementById('toolDoc');
+  const status = document.getElementById('toolStatus');
+  const heading = document.getElementById('toolTitle');
+  heading.textContent = title || 'Tool Guide';
+  status.textContent = 'Loading guide…';
+  out.innerHTML = 'Loading guide…';
+  try{
+    const res = await fetch(path, {cache:'no-store'});
+    if(!res.ok) throw new Error('DOCX not found');
+    const arrayBuffer = await res.arrayBuffer();
+    const result = await mammoth.convertToHtml({arrayBuffer});
+    out.innerHTML = result.value || '<p>No content found.</p>';
+    status.textContent = 'Loaded from source DOCX.';
+  }catch(err){
+    out.innerHTML = '<p><strong>Unable to load guide.</strong></p><p>Please check the source file exists at <code>'+escapeHtml(path)+'</code>.</p>';
+    status.textContent = 'Unable to load guide.';
+    console.error(err);
+  }
+}
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+document.querySelectorAll('[data-doc]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    loadToolDoc(btn.dataset.doc, btn.dataset.title);
+    document.getElementById('toolViewer').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+loadToolDoc('downloads/resources/tools/How to read a metric vernier calliper.docx','How to read a metric vernier calliper');
+</script>
+</body>
+</html>
