@@ -17,48 +17,41 @@
 <div class="container"><div id="bw-global-header"></div>
 <div id="userIndicator">Loading user...</div>
 <section class="heroPanel"><div class="heroIcon">✅</div><h1>Checklists</h1><p class="subtitle" style="text-align:center;max-width:820px;margin:10px auto 0">Access checklists and onboarding review items.</p></section>
-<section class="browserLayout"><aside class="browserNav"><div class="navTitle">Checklist Areas</div><div id="checklistNavRoot"></div></aside><main class="browserContent"><div class="contentBadge" id="contentType">🔐 Access</div><h2 class="contentTitle" id="contentTitle">BW Shared Access</h2><p class="contentLead" id="contentLead">Default access checklist for onboarding and access reviews.</p><div id="contentBody"></div></main></section>
+<section class="browserLayout"><aside class="browserNav"><div class="navTitle">Checklist Areas</div><div id="checklistNavRoot"></div></aside><main class="browserContent"><div class="contentBadge" id="contentType">🔐 Access</div><h2 class="contentTitle" id="contentTitle">Shared - BW</h2><p class="contentLead" id="contentLead">BW-level shared access checklist.</p><div id="contentBody"></div></main></section>
 <section class="bw-editor-panel" id="checklistEditorPanel"><h3>Editor: Checklists</h3><div class="bw-editor-actions"><button class="bw-edit-btn" type="button" onclick="bwChecklistEditor.addAccessItem()">Add access item</button><button class="bw-edit-btn danger" type="button" onclick="bwChecklistEditor.deleteAccessItem()">Delete access item</button><button class="bw-edit-btn" type="button" onclick="bwChecklistEditor.reset()">Reset shared checklist content</button></div><p class="bw-edit-note">Editor visibility is controlled by Azure roles: editor/admin. Checklist ticks still save per user/device; checklist content saves centrally when storage is configured.</p></section>
 
 </div>
 <script src="assets/js/bw-header.js"></script>
 <script src="assets/js/content-store.js"></script>
 <script>
-let checklistData=[{key:'access',icon:'🔐',label:'Access',items:[['access-bw','BW Shared Access'],['access-branch','Branch Shared Access'],['access-individual','Individual Supplier Access'],['access-internal','Internal Systems / Channels']]}];
+let checklistData=[{key:'access',icon:'🔐',label:'Access',items:[['access-bw','Shared - BW'],['access-branch','Shared - Branch'],['access-individual','Individual']]}];
 let accessData={
 'access-bw':[
-  ['NSK','all'],
-  ['Bearing Wholesalers shared mailbox / shared BW access','all']
+  ['NSK','all']
 ],
 'access-branch':[
   ['Bearing Net','all'],
-  ['Optibelt','all'],
-  ['Sutton Tools','all'],
-  ['Industrial World','all'],
+  ['Sutton','all'],
   ['ITM','all'],
+  ['Industrial World','all'],
   ['Smart Freight','all'],
-  ['Sparex','all'],
-  ['Sheffield','all']
+  ['Teams Channel (Branch)','all'],
+  ['Spared','all'],
+  ['Optibelt','all']
 ],
 'access-individual':[
-  ['Universal Bearings','all'],
   ['Australian Bearings','all'],
   ['Sealing Australia','all'],
-  ['Koyo / JTEKT','all'],
+  ['Koyo','all'],
   ['Timken','all'],
-  ['Finer Power Transmissions','all'],
-  ['CBC / Motion access where applicable','all']
-],
-'access-internal':[
+  ['Finer','all'],
   ['BW Trade Teams Channel','all'],
   ['BW Everyone Teams Channel','all'],
-  ['Teams - SOPs','all'],
   ['Oscar','all'],
   ['Momentum Pro - with PIN','all'],
-  ['CORe Training / Preceda','all'],
+  ['Core Training / Preceda','all'],
   ['ServiceNow','all'],
-  ['Phocas','managers'],
-  ['BW Managers Channel','managers'],
+  ['Teams - SOPs','managers'],
   ['Custom Fleet','managers']
 ]
 };
@@ -68,19 +61,18 @@ function accessKey(id,name){return 'bwAccessChecklist::'+id+'::'+name.toLowerCas
 function renderAccess(id){const rows=accessData[id]||[];const list=rows.map(([name,who])=>{const key=accessKey(id,name);const checked=localStorage.getItem(key)==='1'?'checked':'';const tagClass=who==='managers'?'managers':'all';const tagText=who==='managers'?'MANAGERS':'ALL';return `<label class="accessItem"><input type="checkbox" data-access-key="${key}" ${checked}><span class="accessName">${name}</span><span class="accessTag ${tagClass}">${tagText}</span></label>`;}).join('');return `<div class="accessCard"><div class="accessTools"><button class="smallAction" type="button" onclick="setAccessChecklist('${id}',true)">Mark all complete</button><button class="smallAction" type="button" onclick="setAccessChecklist('${id}',false)">Clear this list</button></div><div class="accessList">${list}</div><p class="accessNote">Checklist ticks save locally on this device/browser only.</p></div>`;}
 function setAccessChecklist(id,checked){document.querySelectorAll('#contentBody input[data-access-key]').forEach(box=>{box.checked=checked;localStorage.setItem(box.dataset.accessKey,checked?'1':'0');});}
 function renderContent(type,item){contentType.textContent=`${type.icon} ${type.label}`;contentTitle.textContent=item[1];const leads={
-  'access-bw':'Shared BW-level access required for onboarding and access reviews.',
-  'access-branch':'Branch-level shared supplier and operational access points.',
-  'access-individual':'Individual supplier logins and nominated user access points.',
-  'access-internal':'Internal systems, Teams channels, reporting and manager-only tools.'
+  'access-bw':'BW-level shared access checklist.',
+  'access-branch':'Branch-level shared access checklist.',
+  'access-individual':'Individual supplier, system and manager access checklist.'
 };
-contentLead.textContent=leads[item[0]]||'Default access checklist for onboarding and access reviews.';contentBody.innerHTML=renderAccess(item[0]);}
+contentLead.textContent=leads[item[0]]||'Access checklist for onboarding and access reviews.';contentBody.innerHTML=renderAccess(item[0]);}
 document.addEventListener('change',event=>{const box=event.target.closest('input[data-access-key]');if(!box)return;localStorage.setItem(box.dataset.accessKey,box.checked?'1':'0');});
 
-async function saveChecklistContent(){if(!window.BWContentStore){alert('Shared save is not available yet. Changes will remain on this loaded page only.');return;}try{await BWContentStore.save('checklists-access-content',{checklistData,accessData});}catch(e){alert('Save failed: '+e.message+'\nChanges have been cached locally only.');}}
+async function saveChecklistContent(){if(!window.BWContentStore){alert('Shared save is not available yet. Changes will remain on this loaded page only.');return;}try{await BWContentStore.save('checklists-access-content-v2',{checklistData,accessData});}catch(e){alert('Save failed: '+e.message+'\nChanges have been cached locally only.');}}
 window.bwChecklistEditor={
   async addAccessItem(){const name=prompt('Access item name:','New Access Item');if(!name)return;const who=prompt('Who needs it? Type all or managers:','all')||'all';(accessData[activeItemKey]||(accessData[activeItemKey]=[])).push([name, who.toLowerCase().includes('manager')?'managers':'all']);renderContent(checklistData[0], checklistData[0].items.find(i=>i[0]===activeItemKey)||checklistData[0].items[0]);await saveChecklistContent();},
   async deleteAccessItem(){const rows=accessData[activeItemKey]||[];const name=prompt('Exact item name to delete:');if(!name)return;const idx=rows.findIndex(r=>String(r[0]).toLowerCase()===name.toLowerCase());if(idx<0){alert('Item not found.');return;}if(!confirm('Delete '+rows[idx][0]+'?'))return;rows.splice(idx,1);renderContent(checklistData[0], checklistData[0].items.find(i=>i[0]===activeItemKey)||checklistData[0].items[0]);await saveChecklistContent();},
-  async reset(){if(!confirm('Reset shared checklist content?'))return;await BWContentStore.remove('checklists-access-content').catch(e=>alert('Reset failed: '+e.message));location.reload();}
+  async reset(){if(!confirm('Reset shared checklist content?'))return;await BWContentStore.remove('checklists-access-content-v2').catch(e=>alert('Reset failed: '+e.message));location.reload();}
 };
 async function initChecklists(){
   renderNav();
@@ -90,7 +82,7 @@ async function initChecklists(){
 
   try{
     await BWContentStore.waitForUser();
-    const remote=await BWContentStore.get('checklists-access-content', null);
+    const remote=await BWContentStore.get('checklists-access-content-v2', null);
     if(remote && remote.checklistData && remote.accessData){
       checklistData=remote.checklistData;
       accessData=remote.accessData;
