@@ -831,3 +831,73 @@ html{
   max-width:92%;
   object-fit:contain;
 }
+
+/* =========================================================
+   Final V1 consistency lock
+   - keeps headers/nav/buttons consistent across desktop/mobile
+   - locks dashboard/resource/product tile grid behaviour
+   - hides editor-only public controls while retaining admin.html for V2
+========================================================= */
+:root{--line:rgba(255,255,255,.10);}
+html,body{max-width:100%;overflow-x:hidden;}
+.container{
+  width:min(100% - 36px, 1180px) !important;
+  max-width:1180px !important;
+  margin-inline:auto !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+}
+#bw-global-header,.bw-site-header,.bw-header-inner{max-width:1180px;margin-inline:auto;}
+.bw-header-inner{padding-left:0 !important;padding-right:0 !important;}
+.bw-header-logo img,.bw-site-header .siteLogo{
+  background:#fff;
+  max-width:390px !important;
+  width:min(390px,78vw) !important;
+}
+.bw-header-nav{gap:10px !important;}
+.btn,.smallbtn,.orderMiniBtn,.orderScanBtn,.tax-btn{
+  color:#fff !important;
+  border-color:rgba(198,40,40,.45) !important;
+  background:linear-gradient(180deg, rgba(198,40,40,.20), rgba(198,40,40,.08)) !important;
+  box-shadow:0 8px 22px rgba(0,0,0,.22), 0 0 16px rgba(198,40,40,.12);
+}
+.btn:hover,.smallbtn:hover,.orderMiniBtn:hover,.orderScanBtn:hover,.tax-btn:hover{
+  border-color:rgba(239,68,68,.62) !important;
+  background:linear-gradient(180deg, rgba(198,40,40,.30), rgba(198,40,40,.14)) !important;
+}
+.bw-page-actions,[data-editor-only="1"]{display:none !important;}
+.heroPanel,.browserHero,.card,.orderCard,.rackCard,.browserNav,.browserContent{
+  max-width:100%;
+  border-color:rgba(255,255,255,.10);
+}
+.heroPanel .subtitle,.browserHero .subtitle,.tileSub{text-align:center;}
+.dashboardGrid,.tileGrid,.cards.products,.cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+  align-items:stretch;
+}
+.dashboardTile,.productCard,.card.tile,.cards > a.card{
+  min-width:0;
+  border-radius:18px;
+}
+.dashboardTile .menuLink,.menuTile .menuLink{
+  min-height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  text-align:center;
+}
+.tileLabel,.productTitle{font-weight:950;text-align:center;}
+.tileSub{color:var(--muted);line-height:1.45;margin:8px 0 0;}
+img,video,canvas,iframe,table{max-width:100%;}
+@media(max-width:980px){
+  .dashboardGrid,.tileGrid,.cards.products,.cards{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:640px){
+  .container{width:min(100% - 24px,1180px) !important;}
+  .dashboardGrid,.tileGrid,.cards.products,.cards{grid-template-columns:1fr;}
+  .bw-header-nav{gap:8px !important;}
+  .bw-site-header .btn,.bw-store-label{font-size:12px !important;padding:8px 10px !important;}
+}
