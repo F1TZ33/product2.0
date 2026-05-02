@@ -1,0 +1,28 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": [
+        "authenticated",
+        "viewer",
+        "editor",
+        "admin"
+      ]
+    },
+    {
+      "route": "/*",
+      "allowedRoles": [
+        "authenticated",
+        "viewer",
+        "editor",
+        "admin"
+      ]
+    }
+  ],
+  "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/aad",
+      "statusCode": 302
+    }
+  }
+}
