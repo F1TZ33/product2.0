@@ -229,6 +229,20 @@ body{
     top:-10px;
   }
 }
+  /* === PATCH: Prevent mobile input zoom === */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Optional: improve mobile spacing */
+@media (max-width: 768px){
+  input, select, textarea {
+    padding: 10px;
+  }
+}
+/* === END PATCH === */
 </style>
 </head>
 
