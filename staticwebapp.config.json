@@ -3,8 +3,6 @@
     {
       "route": "/api/*",
       "allowedRoles": [
-        "authenticated",
-        "viewer",
         "editor",
         "admin"
       ]
@@ -12,8 +10,6 @@
     {
       "route": "/*",
       "allowedRoles": [
-        "authenticated",
-        "viewer",
         "editor",
         "admin"
       ]
