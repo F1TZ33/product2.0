@@ -7,6 +7,7 @@
 <link href="assets/css/style.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   html{overflow-x:auto;overflow-y:auto;}
   body{padding-top:max(0px, env(safe-area-inset-top));padding-bottom:max(28px, calc(env(safe-area-inset-bottom) + 18px));overflow-x:auto;overflow-y:auto;}
@@ -64,9 +65,9 @@
 </div>
 <div class="btnRow">
 <button class="btn" id="generateBtn" type="button">Build Rack</button>
-<button class="btn" id="downloadBtn" type="button">Download CSV</button>
+<button class="btn" id="downloadBtn" type="button">Download CSV + PDF</button>
 <button class="btn" id="uploadBtn" type="button">Upload CSV</button>
-<button class="btn" id="summaryBtn" type="button">Print Summary</button>
+<button class="btn" id="summaryBtn" type="button">Download PDF</button>
 <button class="btn" id="qrBtn" type="button">Generate QR Codes</button>
 <button class="btn" id="resetBtn" type="button">Reset</button>
 <input accept=".csv,text/csv" id="csvUpload" type="file"/>
@@ -99,20 +100,100 @@
     output.querySelectorAll('.rackTable input').forEach(input=>{input.addEventListener('focus',()=>highlightBin(input.dataset.binBase||''));input.addEventListener('input',()=>{const row=rackRows[Number(input.dataset.index)];if(!row)return;row[input.dataset.key]=input.value;row.qr=makeQrPayload(row);qrSection.classList.remove('active');qrLabels.innerHTML='';});});}
   function highlightBin(binBase){output.querySelectorAll('.binTile').forEach(tile=>tile.classList.toggle('binTileActive',tile.dataset.binBase===binBase));}
   function buildRack(){if(!buildBinMap())return;render();statusNote.textContent=`${rackRows.length} bin/position entries ready.`;}
-  function downloadCsv(){if(!rackRows.length){alert('Build or upload a rack before downloading.');return;}const lines=[headers.map(csvEscape).join(',')];rackRows.forEach(row=>lines.push([row.part||'',row.desc||''].map(csvEscape).join(',')));const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);const company=val('site')||'Company',category=val('category')||'Category',number=val('rack')||'Number',date=new Date().toISOString().slice(0,10);a.download=`${clean(company)}_${clean(category)}_${clean(number)}_${date}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);setTimeout(printSummary,450);}
+  function getExportBaseName(){
+    const company=val('site')||'Company', category=val('category')||'Category', number=val('rack')||'Number', date=new Date().toISOString().slice(0,10);
+    return `${clean(company)}_${clean(category)}_${clean(number)}_${date}`;
+  }
+  function downloadCsvOnly(){
+    if(!rackRows.length){alert('Build or upload a rack before downloading.');return false;}
+    const lines=[headers.map(csvEscape).join(',')];
+    rackRows.forEach(row=>lines.push([row.part||'',row.desc||''].map(csvEscape).join(',')));
+    const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a');
+    const href=URL.createObjectURL(blob);
+    a.href=href;
+    a.download=`${getExportBaseName()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(href),1500);
+    return true;
+  }
+  function downloadCsv(){
+    if(!downloadCsvOnly()) return;
+    setTimeout(downloadSummaryPdf,250);
+  }
   function uploadCsv(file){const reader=new FileReader();reader.onload=e=>{const parsed=parseCsv(String(e.target.result||''));if(parsed.length<2){alert('Could not upload CSV: CSV has a header but no data rows.');return;}const headerRow=parsed[0].map(h=>String(h).trim().toLowerCase());const dataRows=parsed.slice(1).filter(row=>row.some(cell=>String(cell||'').trim()!==''));const findIndex=names=>{for(const name of names){const idx=headerRow.indexOf(name.toLowerCase());if(idx>=0)return idx;}return -1;};const idxLoc=findIndex(['location','full bin location','full location','bin location']);const idxPart=findIndex(['part number','part','sku']);const idxDesc=findIndex(['description','desc']);
       if(idxLoc>=0){rackRows=dataRows.map((row,i)=>{const loc=row[idxLoc]||'';let shelf=1,bin=1,pos=i+1;const m=String(loc).match(/shelf\s*(\d+)\s*,?\s*bin\s*(\d+)\s*,?\s*position\s*(\d+)/i);if(m){shelf=parseInt(m[1],10);bin=parseInt(m[2],10);pos=parseInt(m[3],10);}return {shelf:shelfLetter(shelf),shelfNumber:shelf,binNumber:bin,positionNumber:pos,location:loc||`Shelf ${shelf}, Bin ${bin}, Position ${pos}`,binBase:`${shelf}-${bin}`,part:idxPart>=0?row[idxPart]||'':row[1]||'',desc:idxDesc>=0?row[idxDesc]||'':row[2]||''};});rackRows.forEach(r=>r.qr=makeQrPayload(r));rebuildBinMapFromRows();}
       else {if(!rackRows.length){const rowsNeeded=dataRows.length;document.getElementById('shelves').value=document.getElementById('shelves').value||'1';document.getElementById('bins').value=document.getElementById('bins').value||String(rowsNeeded);document.getElementById('positions').value=document.getElementById('positions').value||'1';buildBinMap();}
         dataRows.forEach((row,i)=>{if(!rackRows[i])return;rackRows[i].part=idxPart>=0?row[idxPart]||'':row[0]||'';rackRows[i].desc=idxDesc>=0?row[idxDesc]||'':row[1]||'';rackRows[i].qr=makeQrPayload(rackRows[i]);});}
       render();statusNote.textContent=`${Math.min(dataRows.length,rackRows.length)} part entries uploaded.`;uploadInput.value='';};reader.readAsText(file);}
   function rebuildBinMapFromRows(){const grouped={};rackRows.forEach(row=>{const key=`${row.shelfNumber}-${row.binNumber}`;if(!grouped[key])grouped[key]={site:'',category:'',rack:'',shelf:shelfLetter(row.shelfNumber),shelfNumber:row.shelfNumber,binNumber:row.binNumber,positions:0,maxPositions:1};grouped[key].positions=Math.max(grouped[key].positions,Number(row.positionNumber)||1);grouped[key].maxPositions=Math.max(grouped[key].maxPositions,grouped[key].positions);});binMap=Object.values(grouped).sort((a,b)=>a.shelfNumber!==b.shelfNumber?a.shelfNumber-b.shelfNumber:a.binNumber-b.binNumber);setVal('shelves',String(Math.max(...binMap.map(b=>b.shelfNumber),1)));setVal('bins',String(Math.max(...binMap.map(b=>b.binNumber),1)));setVal('positions',String(Math.max(...binMap.map(b=>b.positions),1)));}
-  function printSummary(){if(!binMap.length&&!rackRows.length){alert('Build or upload a rack before printing the summary.');return;}const company=escapeHtml(val('site')||'Company'),category=escapeHtml(val('category')||'Category'),rack=escapeHtml(val('rack')||'Rack'),date=new Date().toISOString().slice(0,10);const shelves={};binMap.forEach(bin=>{if(!shelves[bin.shelfNumber])shelves[bin.shelfNumber]=[];shelves[bin.shelfNumber].push(bin);});let html=`<!DOCTYPE html><html><head><title>Rack Summary</title><style>@page{size:A4 portrait;margin:12mm;}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;}.printHeader{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7mm;margin-bottom:7mm;}.brand{font-size:18pt;font-weight:900;letter-spacing:1px;}.meta{text-align:right;font-size:10pt;line-height:1.35;}.page{break-after:page;page-break-after:always;}.page:last-child{break-after:auto;page-break-after:auto;}h1{font-size:16pt;margin:0 0 5mm;}h2{font-size:13pt;margin:0 0 3mm;}.shelfBox{border:1px solid #111;border-radius:4px;padding:3mm;margin-bottom:4mm;break-inside:avoid;page-break-inside:avoid;}.mapRow{display:flex;flex-wrap:nowrap;gap:3mm;overflow:hidden;}.cell{width:10mm;height:10mm;border:1px solid #111;border-radius:2mm;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10pt;}.listShelf{margin-top:5mm;break-inside:avoid;page-break-inside:avoid;}.loc{font-size:10pt;padding:1.1mm 0;border-bottom:1px solid #ddd;}</style></head><body>`;const header=`<div class="printHeader"><div class="brand">BEARING WHOLESALERS</div><div class="meta"><strong>${company}</strong><br>${category} &nbsp; | &nbsp; Rack ${rack}<br>${date}</div></div>`;
-    html+=`<section class="page">${header}<h1>Rack Map</h1>`;Object.keys(shelves).sort((a,b)=>a-b).forEach(sn=>{html+=`<div class="shelfBox"><h2>Shelf ${sn}</h2><div class="mapRow">`;shelves[sn].sort((a,b)=>a.binNumber-b.binNumber).forEach(bin=>{html+=`<div class="cell">${escapeHtml(bin.positions)}</div>`;});html+='</div></div>';});html+='</section>';
-    html+=`<section>${header}<h1>Location List</h1>`;let currentShelf=null;rackRows.forEach(row=>{if(row.shelfNumber!==currentShelf){if(currentShelf!==null)html+='</div>';html+=`<div class="listShelf"><h2>Shelf ${escapeHtml(row.shelfNumber)}</h2>`;currentShelf=row.shelfNumber;}html+=`<div class="loc">${escapeHtml(row.location)}</div>`;});if(currentShelf!==null)html+='</div>';html+='</section></body></html>';const win=window.open('','_blank','width=900,height=700');if(!win){alert('Allow pop-ups to print the rack summary PDF.');return;}win.document.open();win.document.write(html);win.document.close();win.focus();setTimeout(()=>win.print(),300);}
+  function downloadSummaryPdf(){
+    if(!binMap.length&&!rackRows.length){alert('Build or upload a rack before downloading the summary PDF.');return;}
+    if(!window.jspdf || !window.jspdf.jsPDF){alert('PDF library could not load. Please check your internet connection and try again.');return;}
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const pageW=210, pageH=297, margin=12, usableW=pageW-(margin*2);
+    const company=val('site')||'Company', category=val('category')||'Category', rack=val('rack')||'Rack', date=new Date().toISOString().slice(0,10);
+    const shelves={};
+    binMap.forEach(bin=>{if(!shelves[bin.shelfNumber])shelves[bin.shelfNumber]=[];shelves[bin.shelfNumber].push(bin);});
+    function header(){
+      doc.setDrawColor(17,17,17);doc.setLineWidth(.6);
+      doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('BEARING WHOLESALERS',margin,18);
+      doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text(company,pageW-margin,13,{align:'right'});
+      doc.setFont('helvetica','normal');doc.text(`${category}  |  Rack ${rack}`,pageW-margin,18,{align:'right'});doc.text(date,pageW-margin,23,{align:'right'});
+      doc.line(margin,28,pageW-margin,28);
+    }
+    function ensureSpace(y,needed){if(y+needed>pageH-margin){doc.addPage();header();return 38;}return y;}
+    header();
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Rack Map',margin,39);
+    let y=48;
+    Object.keys(shelves).sort((a,b)=>Number(a)-Number(b)).forEach(sn=>{
+      const bins=shelves[sn].sort((a,b)=>a.binNumber-b.binNumber);
+      const count=Math.max(bins.length,1);
+      const gap=3;
+      let cell=10;
+      const maxCell=(usableW-10-(gap*(count-1)))/count;
+      if(maxCell<cell) cell=Math.max(4,maxCell);
+      const rowW=(cell*count)+(gap*(count-1));
+      const boxW=rowW+10;
+      const boxH=cell+15;
+      y=ensureSpace(y,boxH+5);
+      const x=(pageW-boxW)/2;
+      doc.setDrawColor(17,17,17);doc.setLineWidth(.35);doc.roundedRect(x,y,boxW,boxH,2,2);
+      doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(`Shelf ${sn}`,x+5,y+7);
+      let cx=x+5, cy=y+10;
+      bins.forEach(bin=>{
+        doc.roundedRect(cx,cy,cell,cell,1.5,1.5);
+        doc.setFontSize(Math.max(6,Math.min(10,cell*.9)));doc.text(String(bin.positions||0),cx+(cell/2),cy+(cell/2)+1.5,{align:'center'});
+        cx+=cell+gap;
+      });
+      y+=boxH+5;
+    });
+    doc.addPage();header();
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Location List',margin,39);
+    y=49;
+    let currentShelf=null;
+    rackRows.forEach(row=>{
+      if(row.shelfNumber!==currentShelf){
+        y=ensureSpace(y,14);
+        doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(`Shelf ${row.shelfNumber}`,margin,y);
+        y+=7;currentShelf=row.shelfNumber;
+      }
+      y=ensureSpace(y,7);
+      doc.setFont('helvetica','normal');doc.setFontSize(10);
+      doc.text(String(row.location||''),margin,y);
+      doc.setDrawColor(220,220,220);doc.setLineWidth(.15);doc.line(margin,y+2,pageW-margin,y+2);
+      y+=6;
+    });
+    doc.save(`${getExportBaseName()}_summary.pdf`);
+  }
+  function printSummary(){downloadSummaryPdf();}
   async function generateQrCodes(){if(!rackRows.length){alert('Build or upload a rack before generating QR codes.');return;}qrLabels.innerHTML='';qrSection.classList.add('active');for(const row of rackRows){row.qr=makeQrPayload(row);if(!row.qr) continue;const label=document.createElement('div');label.className='qrLabel';const canvasWrap=document.createElement('div');canvasWrap.className='qrCanvasWrap';const text=document.createElement('div');text.className='qrLabelText';text.innerHTML=`<div class="qrPart">${escapeHtml(row.part||'')}</div><div class="qrDesc">${escapeHtml(row.desc||'')}</div>`;label.appendChild(canvasWrap);label.appendChild(text);qrLabels.appendChild(label);try{if(window.QRCode&&typeof window.QRCode.toCanvas==='function'){const canvas=document.createElement('canvas');canvasWrap.appendChild(canvas);await window.QRCode.toCanvas(canvas,row.qr,{width:114,margin:1,errorCorrectionLevel:'M'});}else if(window.QRious){const canvas=document.createElement('canvas');canvasWrap.appendChild(canvas);new QRious({element:canvas,value:row.qr,size:114,padding:4,level:'M'});}else throw new Error('No QR library');}catch(error){const img=document.createElement('img');img.width=114;img.height=114;img.alt='QR code';img.src='https://api.qrserver.com/v1/create-qr-code/?size=114x114&margin=1&data='+encodeURIComponent(row.qr);canvasWrap.innerHTML='';canvasWrap.appendChild(img);}}
     statusNote.textContent=`${qrLabels.children.length} QR labels generated.`;}
   function resetAll(){document.querySelectorAll('input').forEach(input=>{if(input.type!=='file')input.value='';});output.innerHTML='';statusNote.textContent='';qrLabels.innerHTML='';qrSection.classList.remove('active');binMap=[];rackRows=[];}
-  document.getElementById('generateBtn').addEventListener('click',buildRack);document.getElementById('downloadBtn').addEventListener('click',downloadCsv);document.getElementById('uploadBtn').addEventListener('click',()=>uploadInput.click());document.getElementById('summaryBtn').addEventListener('click',printSummary);document.getElementById('qrBtn').addEventListener('click',generateQrCodes);document.getElementById('resetBtn').addEventListener('click',resetAll);uploadInput.addEventListener('change',()=>{const file=uploadInput.files&&uploadInput.files[0];if(file)uploadCsv(file);});
+  document.getElementById('generateBtn').addEventListener('click',buildRack);document.getElementById('downloadBtn').addEventListener('click',downloadCsv);document.getElementById('uploadBtn').addEventListener('click',()=>uploadInput.click());document.getElementById('summaryBtn').addEventListener('click',downloadSummaryPdf);document.getElementById('qrBtn').addEventListener('click',generateQrCodes);document.getElementById('resetBtn').addEventListener('click',resetAll);uploadInput.addEventListener('change',()=>{const file=uploadInput.files&&uploadInput.files[0];if(file)uploadCsv(file);});
 })();
 </script>
 <script src="assets/js/bw-header.js"></script></body>
