@@ -7,6 +7,39 @@
 <link href="assets/css/style.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style id="bw-browser-edit-format">
+.browserLayout,.salesLayout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px;align-items:start;margin-top:18px;}
+.browserNav,.browserContent,.salesNav,.salesContent{
+  background:linear-gradient(135deg, rgba(198,40,40,.10), transparent 42%),linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.10);border-radius:24px;box-shadow:0 18px 55px rgba(0,0,0,.30);
+}
+.browserNav,.salesNav{padding:14px;position:sticky;top:12px;}
+.browserContent,.salesContent{padding:24px 22px 20px;min-height:620px;}
+.navTitle{margin:2px 4px 14px;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e5d1d1;opacity:.9;}
+.typeBlock{margin:10px 0;border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.02);}
+.typeButton{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:transparent;border:0;color:#fff;padding:16px;font:inherit;font-weight:800;text-align:left;cursor:pointer;}
+.typeButton:hover{background:rgba(255,255,255,.04);}
+.typeLabel{display:flex;align-items:center;gap:10px;min-width:0}
+.typeIcon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(198,40,40,.16);border:1px solid rgba(198,40,40,.34);font-size:18px;flex:0 0 38px}
+.typeChevron{opacity:.8;transition:transform .18s ease}.typeBlock.open .typeChevron{transform:rotate(90deg)}
+.subList{display:none;padding:0 10px 12px}.typeBlock.open .subList{display:block}
+.subButton{width:100%;background:rgba(255,255,255,.02);color:#d8dee7;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 13px;margin:8px 0 0;text-align:left;font:inherit;cursor:pointer;line-height:1.35}
+.subButton:hover{background:rgba(255,255,255,.05);color:#fff}.subButton.active{background:rgba(198,40,40,.16);border-color:rgba(198,40,40,.34);color:#fff}
+.contentBadge{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 14px;border-radius:999px;background:rgba(198,40,40,.16);border:1px solid rgba(198,40,40,.34);font-weight:800;margin-bottom:14px}
+.contentTitle{margin:0 0 8px!important;font-size:30px;line-height:1.1}
+.contentLead{margin:0 0 14px;color:#e5d1d1;font-weight:700;line-height:1.55}
+.contentList{margin:0;padding-left:0;list-style:none}
+.contentList li{margin:9px 0;line-height:1.6;color:#d8dee7}
+.bw-editor-panel{display:none!important}
+.bw-inline-row{position:relative;display:flex;align-items:flex-start;gap:10px;margin:9px 0;padding:8px 34px 8px 10px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)}
+.bw-inline-row[contenteditable="true"], .bw-inline-text[contenteditable="true"], [data-inline-field][contenteditable="true"], .bw-inline-product-line[contenteditable="true"]{outline:1px dashed rgba(198,40,40,.55);outline-offset:2px;background:rgba(255,255,255,.04)}
+.bw-inline-text{flex:1;min-height:20px;line-height:1.55;color:#d8dee7}
+.bw-inline-delete{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:999px;border:1px solid rgba(198,40,40,.6);background:rgba(198,40,40,.22);color:#fff;display:grid;place-items:center;cursor:pointer;font-weight:900;font-size:13px}
+.bw-inline-add{margin-top:12px;border:1px solid rgba(198,40,40,.42);background:rgba(198,40,40,.16);color:#fff;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
+@media(max-width:980px){.browserLayout,.salesLayout{grid-template-columns:1fr}.browserNav,.salesNav{position:static}.browserContent,.salesContent{min-height:unset}}
+</style>
+
 </head>
 <body data-page="page">
 <div class="container">
@@ -188,5 +221,52 @@
   }
 })();
 </script>
+
+<script id="bw-product-inline-all-lines">
+(function(){
+  const EDITABLE_SECTIONS = ['identification','application','brands','suppliers'];
+  function canEdit(){
+    return !!(window.BWCanEdit || (window.BWContentStore && BWContentStore.canWrite && BWContentStore.canWrite()));
+  }
+  function normalise(s){return String(s||'').toLowerCase().replace(/[^a-z]/g,'');}
+  function activeSectionName(){
+    const active = document.querySelector('.subButton.active,.sideNav button.active,.leftMenu button.active,.productMenu .active,[data-section].active,.tab.active,.menu button.active');
+    const h = document.querySelector('.contentTitle,h2,h1');
+    return normalise(active ? active.textContent : (h ? h.textContent : ''));
+  }
+  function makeEditableLine(el){
+    if(el.dataset.bwLineEditable==='1') return;
+    el.dataset.bwLineEditable='1';
+    el.contentEditable='true';
+    el.classList.add('bw-inline-product-line');
+    el.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        const clone = el.cloneNode(false);
+        clone.textContent = 'Description';
+        clone.dataset.bwLineEditable='';
+        el.after(clone);
+        makeEditableLine(clone);
+        clone.focus();
+      }
+    });
+  }
+  function applyProductInlineEditing(){
+    if(!canEdit()) return;
+    const sec = activeSectionName();
+    if(sec && !EDITABLE_SECTIONS.some(x=>sec.includes(x))) return;
+    const pane = document.querySelector('.browserContent,.productContent,.contentPanel,.salesContent,main') || document.body;
+    pane.querySelectorAll('li,p,.contentLead,.contentList li,.detailText div,.infoTile,.card .subtitle,.card p,.panel p,.panel li').forEach(el=>{
+      const text=(el.textContent||'').trim();
+      if(!text || el.closest('nav,header,.browserNav,.salesNav,#bw-global-header,.modalBack')) return;
+      makeEditableLine(el);
+    });
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(applyProductInlineEditing,250));
+  document.addEventListener('click',()=>setTimeout(applyProductInlineEditing,250));
+  document.addEventListener('bw:user-ready',()=>setTimeout(applyProductInlineEditing,250));
+})();
+</script>
+
 </body>
 </html>

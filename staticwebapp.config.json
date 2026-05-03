@@ -2,7 +2,10 @@
   "routes": [
     {
       "route": "/*",
-      "allowedRoles": ["editor", "admin"]
+      "allowedRoles": [
+        "editor",
+        "admin"
+      ]
     }
   ],
   "responseOverrides": {
